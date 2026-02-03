@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActivityType, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, REST, Routes, SlashCommandBuilder, ChannelType, Events } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActivityType, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, REST, Routes, SlashCommandBuilder, ChannelType } = require('discord.js');
 require('dotenv').config();
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -7,7 +7,7 @@ const OWNER_ID = process.env.OWNER_ID;
 
 // ==================== PIC PERMS CONFIG ====================
 const ROLE_NAME = "Pic Perms";
-const STATUS_TRIGGER = "/Asclade";
+const STATUS_TRIGGER = "/Ascalde"; // Fixed to match your screenshot
 const CHECK_INTERVAL = 10000;
 const roleCache = new Map();
 
@@ -55,7 +55,118 @@ const STAFF_POSITIONS = {
             "7. Goals?"
         ]
     },
-    // ... (rest of positions remain the same)
+    "Junior Admin": { 
+        limit: 2, 
+        color: 0xFFA500, 
+        emoji: "🟡",
+        questions: [
+            "1. Why Junior Admin?",
+            "2. What to learn?",
+            "3. Mod experience?",
+            "4. Availability?",
+            "5. Teamwork skills?",
+            "6. Problem solving?",
+            "7. Why you?"
+        ]
+    },
+    "Head Mod": { 
+        limit: 1, 
+        color: 0x9ACD32, 
+        emoji: "🟢",
+        questions: [
+            "1. What makes Head Mod?",
+            "2. Organize mod team?",
+            "3. Conflict experience?",
+            "4. Daily availability?",
+            "5. Training plans?",
+            "6. Mod improvements?",
+            "7. Why lead?"
+        ]
+    },
+    "Senior Mod": { 
+        limit: 2, 
+        color: 0x00FF00, 
+        emoji: "🔵",
+        questions: [
+            "1. Why Senior Mod?",
+            "2. Difficult members?",
+            "3. Favorite tools?",
+            "4. Hours/week?",
+            "5. Rule knowledge?",
+            "6. Help juniors?",
+            "7. Motivation?"
+        ]
+    },
+    "Junior Mod": { 
+        limit: 2, 
+        color: 0x1E90FF, 
+        emoji: "🟣",
+        questions: [
+            "1. Why be mod?",
+            "2. Good moderator traits?",
+            "3. Handle toxicity?",
+            "4. Availability?",
+            "5. Learn from?",
+            "6. Rules knowledge?",
+            "7. Final message"
+        ]
+    },
+    "Head Staff": { 
+        limit: 1, 
+        color: 0x9370DB, 
+        emoji: "⭐",
+        questions: [
+            "1. What's Head Staff?",
+            "2. Improve staff morale?",
+            "3. Leadership experience?",
+            "4. Availability?",
+            "5. Team building?",
+            "6. Staff issues?",
+            "7. Vision?"
+        ]
+    },
+    "Senior Staff": { 
+        limit: 2, 
+        color: 0x8A2BE2, 
+        emoji: "🌟",
+        questions: [
+            "1. Why Senior Staff?",
+            "2. Contributions so far?",
+            "3. What to change?",
+            "4. Availability?",
+            "5. Help juniors?",
+            "6. Server impact?",
+            "7. Goals?"
+        ]
+    },
+    "Junior Staff": { 
+        limit: 2, 
+        color: 0xDA70D6, 
+        emoji: "✨",
+        questions: [
+            "1. Why join staff?",
+            "2. What to contribute?",
+            "3. Enjoy about server?",
+            "4. Availability?",
+            "5. Skills?",
+            "6. Learn?",
+            "7. Why pick you?"
+        ]
+    },
+    "Helper/Support": { 
+        limit: 3, 
+        color: 0xADD8E6, 
+        emoji: "💠",
+        questions: [
+            "1. Why Helper/Support?",
+            "2. Patient with new members?",
+            "3. Help confused members?",
+            "4. Availability?",
+            "5. Knowledge level?",
+            "6. Team player?",
+            "7. Final thoughts"
+        ]
+    }
 };
 
 const client = new Client({
@@ -70,14 +181,12 @@ const client = new Client({
     ]
 });
 
-// Store data for staff applications
+// Store data
 const pendingApplications = new Map();
 const userApplications = new Map();
 const logChannels = new Map();
-const applicationHistory = new Map();
-const staffRoles = new Map();
 
-// ==================== FIXED SLASH COMMANDS ====================
+// Slash Commands
 const commands = [
     new SlashCommandBuilder()
         .setName('apply')
@@ -93,39 +202,16 @@ const commands = [
                 .addChannelTypes(ChannelType.GuildText)),
     
     new SlashCommandBuilder()
-        .setName('applications')
-        .setDescription('View pending applications (Owner only)'),
-    
-    new SlashCommandBuilder()
         .setName('positions')
-        .setDescription('View available positions'),
+        .setDescription('View all staff positions'),
     
     new SlashCommandBuilder()
         .setName('myapplication')
         .setDescription('Check your application status'),
     
     new SlashCommandBuilder()
-        .setName('stats')
-        .setDescription('View bot statistics'),
-    
-    new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Show help menu'),
-    
-    new SlashCommandBuilder()
-        .setName('setrole')
-        .setDescription('Set role for position (Owner only)')
-        .addStringOption(option =>
-            option.setName('position')
-                .setDescription('Staff position')
-                .setRequired(true)
-                .addChoices(
-                    Object.keys(STAFF_POSITIONS).map(pos => ({ name: pos, value: pos }))
-                ))
-        .addRoleOption(option =>
-            option.setName('role')
-                .setDescription('Role to assign for this position')
-                .setRequired(true))
+        .setDescription('Show help menu')
 ];
 
 // ==================== BOT READY ====================
@@ -149,30 +235,24 @@ client.once('ready', async () => {
     // Start Pic Perms checker
     startStatusChecker();
     
-    // Set bot status
     client.user.setActivity({
         name: '/apply for staff',
         type: ActivityType.Watching
     });
 });
 
-// ==================== FIXED PIC PERMS FUNCTIONS ====================
-async function checkUserStatus(member) {
+// ==================== PIC PERMS FUNCTIONS ====================
+function checkUserStatus(member) {
     if (!member || !member.presence) return false;
     
-    // Check custom status
-    const customStatus = member.presence.activities.find(a => a.type === 4); // Custom status
-    if (customStatus && customStatus.state && customStatus.state.includes(STATUS_TRIGGER)) {
-        return true;
-    }
-    
-    // Check other activities
     for (const activity of member.presence.activities) {
-        if (
-            (activity.name && activity.name.includes(STATUS_TRIGGER)) ||
-            (activity.state && activity.state.includes(STATUS_TRIGGER)) ||
-            (activity.details && activity.details.includes(STATUS_TRIGGER))
-        ) {
+        if (activity.type === 4 && activity.state && activity.state.includes(STATUS_TRIGGER)) {
+            return true;
+        }
+        if (activity.name && activity.name.includes(STATUS_TRIGGER)) {
+            return true;
+        }
+        if (activity.state && activity.state.includes(STATUS_TRIGGER)) {
             return true;
         }
     }
@@ -189,11 +269,9 @@ async function getPicRole(guild) {
     
     if (role) {
         roleCache.set(guild.id, role);
-        console.log(`✅ Found '${ROLE_NAME}' role in ${guild.name}`);
         return role;
     }
     
-    console.log(`❌ Could not find '${ROLE_NAME}' role in ${guild.name}`);
     return null;
 }
 
@@ -209,19 +287,17 @@ function startStatusChecker() {
                 for (const member of guild.members.cache.values()) {
                     if (member.user.bot) continue;
                     
-                    const hasTrigger = await checkUserStatus(member);
+                    const hasTrigger = checkUserStatus(member);
                     const hasRole = member.roles.cache.has(picRole.id);
                     
                     try {
                         if (hasTrigger && !hasRole) {
                             await member.roles.add(picRole);
-                            console.log(`🎁 Gave '${ROLE_NAME}' to ${member.user.tag}`);
                         } else if (!hasTrigger && hasRole) {
                             await member.roles.remove(picRole);
-                            console.log(`🗑️ Removed '${ROLE_NAME}' from ${member.user.tag}`);
                         }
                     } catch (error) {
-                        console.error(`❌ Error with ${member.user.tag}: ${error.message}`);
+                        console.error(`❌ Error with ${member.user.tag}:`, error.message);
                     }
                 }
             }
@@ -231,40 +307,23 @@ function startStatusChecker() {
     }, CHECK_INTERVAL);
 }
 
-// ==================== FIXED MESSAGE COMMANDS ====================
+// ==================== MESSAGE COMMANDS ====================
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.content.startsWith('$')) return;
     
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
     
-    if (command === 'test' || command === 'debug') {
+    if (command === 'test') {
         const member = message.member;
         const picRole = await getPicRole(message.guild);
-        const hasTrigger = await checkUserStatus(member);
+        const hasTrigger = checkUserStatus(member);
         const hasRole = picRole ? member.roles.cache.has(picRole.id) : false;
         
         let response = `**🧪 Status Test for ${member.user.tag}:**\n`;
-        response += `• Bot Online: ✅ YES\n`;
         response += `• Looking for: \`${STATUS_TRIGGER}\`\n`;
-        response += `• Role Found: ${picRole ? '✅ YES' : '❌ NO'}\n`;
         response += `• Status Detected: ${hasTrigger ? '✅ YES' : '❌ NO'}\n`;
         response += `• Has Role: ${hasRole ? '✅ YES' : '❌ NO'}\n`;
-        
-        if (member.presence?.activities?.length > 0) {
-            response += `\n**📋 Current Activities:**\n`;
-            member.presence.activities.forEach((activity, i) => {
-                const typeName = getActivityType(activity.type);
-                response += `${i+1}. **${typeName}:** "${activity.name || 'None'}"`;
-                if (activity.state) response += ` | **Text:** "${activity.state}"`;
-                if (activity.details) response += ` | **Details:** "${activity.details}"`;
-                response += '\n';
-            });
-        } else {
-            response += `\n**📋 Current Activities:** No activities\n`;
-        }
-        
-        response += `\n**💡 Tip:** Set your custom status to include: \`${STATUS_TRIGGER}\``;
         
         await message.reply(response);
     }
@@ -272,7 +331,7 @@ client.on('messageCreate', async (message) => {
     else if (command === 'checkme') {
         const member = message.member;
         const picRole = await getPicRole(message.guild);
-        const hasTrigger = await checkUserStatus(member);
+        const hasTrigger = checkUserStatus(member);
         const hasRole = picRole ? member.roles.cache.has(picRole.id) : false;
         
         const embed = new EmbedBuilder()
@@ -291,93 +350,28 @@ client.on('messageCreate', async (message) => {
             inline: false
         });
         
-        if (!hasTrigger) {
-            embed.addFields({
-                name: '🚀 How to get the role:',
-                value: `1. Click your profile picture\n2. Select "Set Custom Status"\n3. Type: \`${STATUS_TRIGGER}\`\n4. Click "Save"\n⏱️ Role will appear in **10 seconds**`,
-                inline: false
-            });
-        } else if (!hasRole) {
-            embed.addFields({
-                name: '⏳ Almost there!',
-                value: `✅ You have the status!\n⏱️ Role should appear in **10 seconds**`,
-                inline: false
-            });
-        } else {
-            embed.addFields({
-                name: '🎉 Perfect!',
-                value: `✅ You have both the status and role!`,
-                inline: false
-            });
-        }
-        
         await message.reply({ embeds: [embed] });
     }
     
     else if (command === 'help') {
         const embed = new EmbedBuilder()
             .setTitle('🤖 Bot Help Menu')
-            .setDescription(`**Two Systems:**\n1. Pic Perms: Put \`${STATUS_TRIGGER}\` in status\n2. Staff Applications: Apply for staff roles`)
             .setColor(0x0099FF);
         
         embed.addFields(
-            { name: '**🎯 Pic Perms Commands**', value: 'Prefix: `$`', inline: false },
-            { name: '`$test`', value: 'Check status detection', inline: true },
-            { name: '`$checkme`', value: 'Check your status & role', inline: true },
-            { name: '`$help`', value: 'Show this menu', inline: true }
+            { name: '**📋 Staff Application Commands**', value: 'Slash commands:', inline: false },
+            { name: '`/apply`', value: 'Start staff application', inline: true },
+            { name: '`/positions`', value: 'View all positions', inline: true },
+            { name: '`/myapplication`', value: 'Check your app', inline: true }
         );
         
         embed.addFields(
-            { name: '**📋 Staff Application Commands**', value: 'Prefix: `/`', inline: false },
-            { name: '`/apply`', value: 'Start staff application', inline: true },
-            { name: '`/positions`', value: 'View available positions', inline: true },
-            { name: '`/myapplication`', value: 'Check app status', inline: true }
+            { name: '**🎯 Pic Perms Commands**', value: 'Message commands:', inline: false },
+            { name: '`$test`', value: 'Check status detection', inline: true },
+            { name: '`$checkme`', value: 'Check your role status', inline: true }
         );
         
-        if (message.author.id === OWNER_ID) {
-            embed.addFields(
-                { name: '**👑 Owner Commands**', value: 'Only you:', inline: false },
-                { name: '`/logging [#channel]`', value: 'Set logging channel', inline: true },
-                { name: '`/applications`', value: 'View pending apps', inline: true },
-                { name: '`/setrole`', value: 'Set staff roles', inline: true }
-            );
-        }
-        
         await message.reply({ embeds: [embed] });
-    }
-});
-
-function getActivityType(type) {
-    const types = {
-        0: 'Playing',
-        1: 'Streaming',
-        2: 'Listening',
-        3: 'Watching',
-        4: 'Custom Status'
-    };
-    return types[type] || `Type ${type}`;
-}
-
-// ==================== INSTANT STATUS UPDATE ====================
-client.on('presenceUpdate', async (oldPresence, newPresence) => {
-    if (!newPresence || !newPresence.member || newPresence.member.user.bot) return;
-    
-    const picRole = await getPicRole(newPresence.member.guild);
-    if (!picRole) return;
-    
-    const hasTrigger = await checkUserStatus(newPresence.member);
-    const hasRole = newPresence.member.roles.cache.has(picRole.id);
-    
-    try {
-        if (hasTrigger && !hasRole) {
-            await newPresence.member.roles.add(picRole);
-            console.log(`⚡ Gave role to ${newPresence.member.user.tag} (instant)`);
-        } else if (!hasTrigger && hasRole) {
-            await newPresence.member.roles.remove(picRole);
-            console.log(`⚡ Removed role from ${newPresence.member.user.tag} (instant)`);
-        }
-    } catch (error) {
-        console.error(`Instant update error: ${error.message}`);
     }
 });
 
@@ -388,7 +382,11 @@ client.on('interactionCreate', async (interaction) => {
     const { commandName, options } = interaction;
     
     if (commandName === 'apply') {
-        await handleApplyCommand(interaction);
+        await showAllPositions(interaction);
+    }
+    
+    else if (commandName === 'positions') {
+        await showAllPositions(interaction);
     }
     
     else if (commandName === 'logging') {
@@ -408,21 +406,16 @@ client.on('interactionCreate', async (interaction) => {
         });
     }
     
-    else if (commandName === 'positions') {
-        await showAvailablePositions(interaction);
-    }
-    
     else if (commandName === 'help') {
         const embed = new EmbedBuilder()
             .setTitle('🤖 Bot Help Menu')
-            .setDescription(`Use \`/apply\` to start a staff application\nUse \`$test\` to check Pic Perms status`)
             .setColor(0x0099FF);
         
         embed.addFields(
-            { name: '**📋 Application Commands**', value: 'Slash commands:', inline: false },
+            { name: '**📋 Staff Application Commands**', value: 'Slash commands:', inline: false },
             { name: '`/apply`', value: 'Start staff application', inline: true },
-            { name: '`/positions`', value: 'View available positions', inline: true },
-            { name: '`/myapplication`', value: 'Check your app status', inline: true }
+            { name: '`/positions`', value: 'View all positions', inline: true },
+            { name: '`/myapplication`', value: 'Check your application status', inline: true }
         );
         
         embed.addFields(
@@ -431,41 +424,75 @@ client.on('interactionCreate', async (interaction) => {
             { name: '`$checkme`', value: 'Check your role status', inline: true }
         );
         
-        if (interaction.user.id === OWNER_ID) {
-            embed.addFields(
-                { name: '**👑 Owner Commands**', value: 'Only you:', inline: false },
-                { name: '`/logging`', value: 'Set logging channel', inline: true },
-                { name: '`/applications`', value: 'View pending apps', inline: true },
-                { name: '`/setrole`', value: 'Set staff roles', inline: true }
-            );
-        }
-        
         await interaction.reply({ embeds: [embed], ephemeral: true });
-    }
-    
-    else if (commandName === 'setrole') {
-        if (interaction.user.id !== OWNER_ID) {
-            return interaction.reply({ 
-                content: '❌ Only the server owner can set roles!', 
-                ephemeral: true 
-            });
-        }
-        
-        const position = options.getString('position');
-        const role = options.getRole('role');
-        
-        const key = `${interaction.guild.id}_${position}`;
-        staffRoles.set(key, role.id);
-        
-        await interaction.reply({
-            content: `✅ Role ${role} set for position **${position}**`,
-            ephemeral: true
-        });
     }
 });
 
-// ==================== APPLICATION HANDLERS ====================
-async function handleApplyCommand(interaction) {
+// ==================== FIXED: SHOW ALL POSITIONS ====================
+async function showAllPositions(interaction) {
+    const embed = new EmbedBuilder()
+        .setTitle('👥 Available Staff Positions')
+        .setDescription('Click a button below to apply for that position\n*Note: You can apply even if position shows as "full"*')
+        .setColor(0x0099FF)
+        .setFooter({ text: 'Positions in RED are currently full' });
+    
+    // Create buttons for ALL positions (not filtering out full ones)
+    const rows = [];
+    let currentRow = new ActionRowBuilder();
+    let buttonCount = 0;
+    
+    Object.entries(STAFF_POSITIONS).forEach(([position, data]) => {
+        const current = getCurrentSlotCount(interaction.guild, position);
+        const isFull = current >= data.limit;
+        
+        const button = new ButtonBuilder()
+            .setCustomId(`apply_${position}`)
+            .setLabel(`${position} (${current}/${data.limit})`)
+            .setStyle(isFull ? ButtonStyle.Danger : ButtonStyle.Primary)
+            .setEmoji(data.emoji)
+            .setDisabled(isFull); // Optional: disable if full
+        
+        currentRow.addComponents(button);
+        buttonCount++;
+        
+        if (buttonCount % 5 === 0) {
+            rows.push(currentRow);
+            currentRow = new ActionRowBuilder();
+        }
+    });
+    
+    if (currentRow.components.length > 0) {
+        rows.push(currentRow);
+    }
+    
+    await interaction.reply({ 
+        embeds: [embed], 
+        components: rows,
+        ephemeral: true 
+    });
+}
+
+// ==================== BUTTON HANDLER ====================
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
+    
+    if (interaction.customId.startsWith('apply_')) {
+        const position = interaction.customId.replace('apply_', '');
+        await startApplicationProcess(interaction, position);
+    }
+});
+
+// ==================== FIXED APPLICATION PROCESS ====================
+async function startApplicationProcess(interaction, position) {
+    const data = STAFF_POSITIONS[position];
+    if (!data) {
+        return interaction.reply({ 
+            content: '❌ Invalid position selected!', 
+            ephemeral: true 
+        });
+    }
+    
+    // Check if user already has a pending application
     const pendingApps = pendingApplications.get(interaction.guild.id) || [];
     const hasPending = pendingApps.some(app => app.userId === interaction.user.id);
     
@@ -476,169 +503,151 @@ async function handleApplyCommand(interaction) {
         });
     }
     
-    const hasStaffRole = interaction.member.roles.cache.some(role => 
-        Object.keys(STAFF_POSITIONS).some(pos => role.name === pos)
-    );
-    
-    if (hasStaffRole) {
-        return interaction.reply({ 
-            content: '❌ You already have a staff role!', 
-            ephemeral: true 
-        });
-    }
-    
-    await showAvailablePositions(interaction);
-}
-
-async function showAvailablePositions(interaction) {
-    const embed = new EmbedBuilder()
-        .setTitle('👥 Available Staff Positions')
-        .setDescription('Click a button below to apply for that position')
-        .setColor(0x0099FF);
-    
-    const rows = [];
-    let currentRow = new ActionRowBuilder();
-    let buttonCount = 0;
-    
-    Object.entries(STAFF_POSITIONS).forEach(([position, data]) => {
-        const current = getCurrentSlotCount(interaction.guild, position);
-        
-        if (current < data.limit) {
-            const button = new ButtonBuilder()
-                .setCustomId(`apply_${position}`)
-                .setLabel(`${position} (${current}/${data.limit})`)
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(data.emoji);
-            
-            currentRow.addComponents(button);
-            buttonCount++;
-            
-            if (buttonCount % 5 === 0) {
-                rows.push(currentRow);
-                currentRow = new ActionRowBuilder();
-            }
-        }
-    });
-    
-    if (currentRow.components.length > 0) {
-        rows.push(currentRow);
-    }
-    
-    if (rows.length === 0) {
-        embed.setDescription('❌ **All positions are currently full!**\nCheck back later for openings.');
-        return interaction.reply({ 
-            embeds: [embed], 
-            ephemeral: true 
-        });
-    }
-    
-    if (interaction.replied || interaction.deferred) {
-        await interaction.editReply({ 
-            embeds: [embed], 
-            components: rows 
-        });
-    } else {
-        await interaction.reply({ 
-            embeds: [embed], 
-            components: rows,
-            ephemeral: true 
-        });
-    }
-}
-
-// ==================== BUTTON HANDLERS ====================
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
-    
-    if (interaction.customId.startsWith('apply_')) {
-        const position = interaction.customId.replace('apply_', '');
-        await startApplicationProcess(interaction, position);
-    }
-    
-    else if (interaction.customId === 'cancel_application') {
-        const key = `${interaction.user.id}_${interaction.guild.id}`;
-        userApplications.delete(key);
-        await interaction.update({ 
-            content: '❌ Application cancelled.', 
-            embeds: [], 
-            components: [] 
-        });
-    }
-});
-
-async function startApplicationProcess(interaction, position) {
-    const data = STAFF_POSITIONS[position];
-    const current = getCurrentSlotCount(interaction.guild, position);
-    
-    if (current >= data.limit) {
-        return interaction.update({ 
-            content: `❌ ${position} is now full!`, 
-            embeds: [], 
-            components: [] 
-        });
-    }
-    
+    // Start application
     const key = `${interaction.user.id}_${interaction.guild.id}`;
     userApplications.set(key, { 
         position, 
-        answers: [],
+        answers: new Array(data.questions.length).fill(''),
         currentQuestion: 0,
         startTime: Date.now() 
     });
     
+    // Show first question
     await showQuestion(interaction, position, 0);
 }
 
+// ==================== FIXED QUESTION MODAL ====================
 async function showQuestion(interaction, position, questionIndex) {
     const data = STAFF_POSITIONS[position];
     const question = data.questions[questionIndex];
     
     const modal = new ModalBuilder()
-        .setCustomId(`answer_${position}_${questionIndex}`)
+        .setCustomId(`question_${position}_${questionIndex}`)
         .setTitle(`${position} - Question ${questionIndex + 1}/${data.questions.length}`);
     
     const input = new TextInputBuilder()
         .setCustomId('answer')
         .setLabel(`Question ${questionIndex + 1}`)
         .setStyle(TextInputStyle.Paragraph)
-        .setValue(question)
+        .setPlaceholder(question)
         .setRequired(true)
-        .setPlaceholder('Type your answer here...')
+        .setMinLength(10)
         .setMaxLength(1000);
     
-    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    const actionRow = new ActionRowBuilder().addComponents(input);
+    modal.addComponents(actionRow);
     
     await interaction.showModal(modal);
 }
 
-// ==================== MODAL HANDLER ====================
+// ==================== FIXED MODAL SUBMIT HANDLER ====================
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isModalSubmit()) return;
     
-    if (interaction.customId.startsWith('answer_')) {
-        const [_, position, qIndex] = interaction.customId.split('_');
+    if (interaction.customId.startsWith('question_')) {
+        const [_, position, questionIndexStr] = interaction.customId.split('_');
+        const questionIndex = parseInt(questionIndexStr);
         const answer = interaction.fields.getTextInputValue('answer');
         
         const key = `${interaction.user.id}_${interaction.guild.id}`;
-        const appData = userApplications.get(key);
+        let appData = userApplications.get(key);
         
         if (!appData) {
             return interaction.reply({ 
-                content: '❌ Application session expired!', 
+                content: '❌ Application session expired. Please start over with `/apply`.', 
                 ephemeral: true 
             });
         }
         
-        appData.answers[qIndex] = answer;
-        const nextIndex = parseInt(qIndex) + 1;
-        const totalQuestions = STAFF_POSITIONS[position].questions.length;
+        // Store answer
+        appData.answers[questionIndex] = answer;
+        appData.currentQuestion = questionIndex + 1;
         
-        if (nextIndex < totalQuestions) {
-            appData.currentQuestion = nextIndex;
+        const data = STAFF_POSITIONS[position];
+        const nextIndex = questionIndex + 1;
+        
+        // Check if there are more questions
+        if (nextIndex < data.questions.length) {
+            // Show next question
             await showQuestion(interaction, position, nextIndex);
         } else {
-            await submitApplication(interaction, position);
+            // All questions answered, show summary
+            await showApplicationSummary(interaction, position);
         }
+    }
+});
+
+// ==================== APPLICATION SUMMARY ====================
+async function showApplicationSummary(interaction, position) {
+    const key = `${interaction.user.id}_${interaction.guild.id}`;
+    const appData = userApplications.get(key);
+    const data = STAFF_POSITIONS[position];
+    
+    if (!appData) {
+        return interaction.reply({ 
+            content: '❌ Application data not found!', 
+            ephemeral: true 
+        });
+    }
+    
+    const embed = new EmbedBuilder()
+        .setTitle('📋 Application Summary')
+        .setDescription(`**Position:** ${position}\n**Questions Completed:** ${appData.answers.filter(a => a).length}/${data.questions.length}`)
+        .setColor(data.color);
+    
+    // Show preview of first 2 answers
+    for (let i = 0; i < Math.min(2, appData.answers.length); i++) {
+        if (appData.answers[i]) {
+            const preview = appData.answers[i].length > 100 
+                ? appData.answers[i].substring(0, 100) + '...' 
+                : appData.answers[i];
+            embed.addFields({
+                name: `Q${i + 1} Preview`,
+                value: preview,
+                inline: false
+            });
+        }
+    }
+    
+    const buttons = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`submit_app_${position}`)
+            .setLabel('Submit Application')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('✅'),
+        new ButtonBuilder()
+            .setCustomId('cancel_app')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Danger)
+            .setEmoji('❌')
+    );
+    
+    await interaction.reply({ 
+        content: '✅ All questions completed! Review your answers below:',
+        embeds: [embed], 
+        components: [buttons],
+        ephemeral: true 
+    });
+}
+
+// ==================== SUBMIT APPLICATION ====================
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isButton()) return;
+    
+    if (interaction.customId.startsWith('submit_app_')) {
+        const position = interaction.customId.replace('submit_app_', '');
+        await submitApplication(interaction, position);
+    }
+    
+    else if (interaction.customId === 'cancel_app') {
+        const key = `${interaction.user.id}_${interaction.guild.id}`;
+        userApplications.delete(key);
+        
+        await interaction.update({ 
+            content: '❌ Application cancelled.', 
+            embeds: [], 
+            components: [] 
+        });
     }
 });
 
@@ -653,6 +662,18 @@ async function submitApplication(interaction, position) {
         });
     }
     
+    // Check if all questions are answered
+    const data = STAFF_POSITIONS[position];
+    const unanswered = appData.answers.some(answer => !answer || answer.trim() === '');
+    
+    if (unanswered) {
+        return interaction.reply({ 
+            content: '❌ Please answer all questions before submitting!', 
+            ephemeral: true 
+        });
+    }
+    
+    // Create application object
     const appId = generateId();
     const application = {
         id: appId,
@@ -665,33 +686,39 @@ async function submitApplication(interaction, position) {
         guildId: interaction.guild.id
     };
     
+    // Store in pending applications
     if (!pendingApplications.has(interaction.guild.id)) {
         pendingApplications.set(interaction.guild.id, []);
     }
     pendingApplications.get(interaction.guild.id).push(application);
     
+    // Clean up
     userApplications.delete(key);
     
-    await interaction.reply({
-        content: `✅ Application submitted!\n**Position:** ${position}\n**ID:** \`${appId}\``,
-        ephemeral: true
+    // Update the interaction
+    await interaction.update({
+        content: `✅ **Application Submitted Successfully!**\n\n**Position:** ${position}\n**Application ID:** \`${appId}\`\n**Status:** ⏳ Pending Owner Review\n\nYour application has been sent to the owner for review.`,
+        embeds: [],
+        components: []
     });
     
+    // Send to log channel
     await sendToLogChannel(interaction, application);
 }
 
+// ==================== SEND TO LOG CHANNEL ====================
 async function sendToLogChannel(interaction, application) {
     const logChannelId = logChannels.get(interaction.guild.id);
     
     if (!logChannelId) {
-        console.log(`⚠️ No log channel set for guild ${interaction.guild.id}`);
+        console.log(`⚠️ No log channel set. Use /logging to set one.`);
         return;
     }
     
     const logChannel = interaction.guild.channels.cache.get(logChannelId);
     
     if (!logChannel) {
-        console.error(`❌ Log channel ${logChannelId} not found`);
+        console.error(`❌ Log channel not found`);
         return;
     }
     
@@ -699,20 +726,22 @@ async function sendToLogChannel(interaction, application) {
     
     const embed = new EmbedBuilder()
         .setTitle(`📋 New Application - ${application.position}`)
-        .setDescription(`**User:** <@${application.userId}>\n**Submitted:** <t:${Math.floor(application.timestamp / 1000)}:R>`)
+        .setDescription(`**Applicant:** <@${application.userId}>\n**Submitted:** <t:${Math.floor(application.timestamp / 1000)}:R>\n**Application ID:** \`${application.id}\``)
         .setColor(data.color)
         .setThumbnail(application.avatar)
-        .setFooter({ text: `ID: ${application.id}` });
+        .setTimestamp();
     
+    // Add all questions and answers
     data.questions.forEach((question, index) => {
-        const answer = application.answers[index] || 'No answer provided';
+        const answer = application.answers[index] || 'No answer';
         embed.addFields({
-            name: question,
-            value: answer.length > 100 ? answer.substring(0, 100) + '...' : answer,
+            name: `**${question}**`,
+            value: answer.length > 500 ? answer.substring(0, 500) + '...' : answer,
             inline: false
         });
     });
     
+    // Add action buttons
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`accept_${application.id}`)
@@ -725,12 +754,13 @@ async function sendToLogChannel(interaction, application) {
     );
     
     await logChannel.send({ 
-        content: `📬 New application from <@${application.userId}>`, 
+        content: `📬 **New Staff Application** - <@${OWNER_ID}>`, 
         embeds: [embed], 
         components: [buttons] 
     });
 }
 
+// ==================== HELPER FUNCTIONS ====================
 function getCurrentSlotCount(guild, position) {
     const role = guild.roles.cache.find(r => r.name === position);
     return role ? role.members.size : 0;
